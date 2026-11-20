@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "VillageConfig": {
+      "title": "VillageConfig",
+      "description": "Configurable village name, location, and wards in Hindi, Odia, and English.",
+      "type": "object",
+      "properties": {
+        "villageNameHi": { "type": "string", "description": "Village name in Hindi" },
+        "villageNameOr": { "type": "string", "description": "Village name in Odia" },
+        "villageNameEn": { "type": "string", "description": "Village name in English" },
+        "district": { "type": "string", "description": "District / Block name" },
+        "stateName": { "type": "string", "description": "State name" },
+        "wards": { "type": "array", "description": "Bounded list of ward/sahi names" },
+        "updatedByUid": { "type": "string", "description": "Admin UID who last updated config" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["villageNameHi", "villageNameOr", "villageNameEn", "wards", "updatedByUid", "createdAt", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Authorized village administrator entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID of admin" },
+        "email": { "type": "string", "description": "Verified Google email" },
+        "displayName": { "type": "string", "description": "Admin display name" },
+        "roleLabel": { "type": "string", "enum": ["ADMIN", "SARPANCH", "SECRETARY"], "description": "Role badge" },
+        "addedByUid": { "type": "string", "description": "Admin UID who granted role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["uid", "email", "displayName", "roleLabel", "addedByUid", "createdAt", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated villager profile and language preference.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string", "description": "User name" },
+        "email": { "type": "string", "description": "User email" },
+        "preferredLanguage": { "type": "string", "enum": ["BILINGUAL", "HINDI", "ODIA"], "description": "UI language mode" },
+        "ward": { "type": "string", "description": "Home ward or sahi" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "displayName", "email", "preferredLanguage", "createdAt", "updatedAt"]
+    },
+    "Family": {
+      "title": "Family",
+      "description": "Village family / household record.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "description": "Creator UID" },
+        "familyCode": { "type": "string", "description": "Unique household code e.g. FAM-101" },
+        "headName": { "type": "string", "description": "Head of family name" },
+        "headNameLocal": { "type": "string", "description": "Local script name" },
+        "ward": { "type": "string", "description": "Ward / Mohalla / Sahi" },
+        "houseNumber": { "type": "string", "description": "House number" },
+        "rationCardCategory": { "type": "string", "enum": ["APL", "BPL", "AAY", "NONE"], "description": "Ration card category" },
+        "memberCount": { "type": "integer", "description": "Number of family members" },
+        "visibility": { "type": "string", "enum": ["PUBLIC", "PRIVATE"], "description": "Directory visibility" },
+        "authorizedViewerUids": { "type": "array", "description": "Approved viewer UIDs (max 20)" },
+        "verificationStatus": { "type": "string", "enum": ["PENDING", "VERIFIED", "REJECTED"], "description": "Admin verification state" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["ownerUid", "familyCode", "headName", "ward", "rationCardCategory", "memberCount", "visibility", "authorizedViewerUids", "verificationStatus", "createdAt", "updatedAt"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Village member directory record with strictly masked Aadhaar and Voter ID.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "description": "Creator UID" },
+        "familyId": { "type": "string", "description": "Optional linked family document ID" },
+        "familyCode": { "type": "string", "description": "Family code label" },
+        "fullName": { "type": "string", "description": "Full name" },
+        "fullNameLocal": { "type": "string", "description": "Hindi / Odia name" },
+        "guardianName": { "type": "string", "description": "Father / Spouse name" },
+        "relationToHead": { "type": "string", "enum": ["HEAD", "SPOUSE", "SON", "DAUGHTER", "PARENT", "OTHER"], "description": "Relationship" },
+        "age": { "type": "integer", "description": "Age in years" },
+        "gender": { "type": "string", "enum": ["MALE", "FEMALE", "OTHER"], "description": "Gender" },
+        "ward": { "type": "string", "description": "Ward / Sahi" },
+        "occupation": { "type": "string", "description": "Occupation" },
+        "aadhaarMasked": { "type": "string", "description": "Masked Aadhaar e.g. XXXX-XXXX-1234" },
+        "aadhaarLast4": { "type": "string", "description": "Last 4 digits for masked search" },
+        "voterIdMasked": { "type": "string", "description": "Masked Voter ID e.g. ODJ••••567" },
+        "voterIdLast4": { "type": "string", "description": "Last 4 chars for masked search" },
+        "visibility": { "type": "string", "enum": ["PUBLIC", "PRIVATE"], "description": "Record privacy mode" },
+        "authorizedViewerUids": { "type": "array", "description": "Approved viewer UIDs (max 20)" },
+        "verificationStatus": { "type": "string", "enum": ["PENDING", "VERIFIED", "REJECTED"], "description": "Admin verification state" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["ownerUid", "fullName", "guardianName", "relationToHead", "age", "gender", "ward", "aadhaarMasked", "voterIdMasked", "visibility", "authorizedViewerUids", "verificationStatus", "createdAt", "updatedAt"]
+    },
+    "PrivateMemberDetail": {
+      "title": "PrivateMemberDetail",
+      "description": "Isolated PII subcollection for sensitive member contact, address, and notes.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "description": "Owner UID" },
+        "authorizedViewerUids": { "type": "array", "description": "Approved viewer UIDs (max 20)" },
+        "phoneNumber": { "type": "string", "description": "Private phone number" },
+        "fullAddress": { "type": "string", "description": "Full residential address" },
+        "emergencyContact": { "type": "string", "description": "Emergency contact details" },
+        "privateNotes": { "type": "string", "description": "Private notes" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["ownerUid", "authorizedViewerUids", "phoneNumber", "fullAddress", "emergencyContact", "privateNotes", "createdAt", "updatedAt"]
+    },
+    "AccessRequest": {
+      "title": "AccessRequest",
+      "description": "Permission request to view a private village record or private details.",
+      "type": "object",
+      "properties": {
+        "requesterUid": { "type": "string", "description": "Requester UID" },
+        "requesterName": { "type": "string", "description": "Requester display name" },
+        "targetType": { "type": "string", "enum": ["MEMBER", "FAMILY"], "description": "Target record type" },
+        "targetId": { "type": "string", "description": "Target document ID" },
+        "targetName": { "type": "string", "description": "Target display name" },
+        "targetOwnerUid": { "type": "string", "description": "Target record owner UID" },
+        "reason": { "type": "string", "description": "Purpose of access request" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "REVOKED"], "description": "Request state" },
+        "reviewedByUid": { "type": "string", "description": "Approver UID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["requesterUid", "requesterName", "targetType", "targetId", "targetName", "targetOwnerUid", "reason", "status", "reviewedByUid", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/village_config/{configId}": {
+      "schema": { "$ref": "#/entities/VillageConfig" },
+      "description": "Village configuration document (main)."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Admin role directory."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated villager profiles."
+    },
+    "/families/{familyId}": {
+      "schema": { "$ref": "#/entities/Family" },
+      "description": "Village family records."
+    },
+    "/members/{memberId}": {
+      "schema": { "$ref": "#/entities/Member" },
+      "description": "Village member records with masked Aadhaar and Voter ID."
+    },
+    "/members/{memberId}/private_details/{detailId}": {
+      "schema": { "$ref": "#/entities/PrivateMemberDetail" },
+      "description": "Isolated PII subcollection for a member."
+    },
+    "/access_requests/{requestId}": {
+      "schema": { "$ref": "#/entities/AccessRequest" },
+      "description": "Permission requests for private records."
+    }
+  }
+}

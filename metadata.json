@@ -1,0 +1,8 @@
+{
+  "name": "My Village",
+  "description": "Bilingual Hindi and Odia village directory app with member registration, masked Aadhaar and Voter ID records, family records, search, and role-based admin permissions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

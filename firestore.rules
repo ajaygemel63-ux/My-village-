@@ -1,0 +1,311 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('email' in request.auth.token &&
+         'email_verified' in request.auth.token &&
+         request.auth.token.email == 'ajayhoney795@gmail.com' &&
+         request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidUidList(list, maxLen) {
+      return list is list && list.size() <= maxLen && (list.size() == 0 || list[0] is string);
+    }
+
+    function isValidStringBounds(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // --- ENTITY VALIDATION HELPERS ---
+    function isValidVillageConfig(data) {
+      return data.keys().hasAll(['villageNameHi', 'villageNameOr', 'villageNameEn', 'wards', 'updatedByUid', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['villageNameHi', 'villageNameOr', 'villageNameEn', 'district', 'stateName', 'wards', 'updatedByUid', 'createdAt', 'updatedAt']) &&
+             isValidStringBounds(data.villageNameHi, 1, 100) &&
+             isValidStringBounds(data.villageNameOr, 1, 100) &&
+             isValidStringBounds(data.villageNameEn, 1, 100) &&
+             (!('district' in data) || isValidStringBounds(data.district, 0, 100)) &&
+             (!('stateName' in data) || isValidStringBounds(data.stateName, 0, 100)) &&
+             isValidUidList(data.wards, 30) &&
+             isValidStringBounds(data.updatedByUid, 1, 128) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'roleLabel', 'addedByUid', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['uid', 'email', 'displayName', 'roleLabel', 'addedByUid', 'createdAt', 'updatedAt']) &&
+             isValidStringBounds(data.uid, 1, 128) &&
+             isValidStringBounds(data.email, 3, 200) &&
+             isValidStringBounds(data.displayName, 1, 100) &&
+             data.roleLabel in ['ADMIN', 'SARPANCH', 'SECRETARY'] &&
+             isValidStringBounds(data.addedByUid, 1, 128) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['userId', 'displayName', 'email', 'preferredLanguage', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'displayName', 'email', 'preferredLanguage', 'ward', 'createdAt', 'updatedAt']) &&
+             isValidStringBounds(data.userId, 1, 128) &&
+             isValidStringBounds(data.displayName, 1, 100) &&
+             isValidStringBounds(data.email, 3, 200) &&
+             data.preferredLanguage in ['BILINGUAL', 'HINDI', 'ODIA'] &&
+             (!('ward' in data) || isValidStringBounds(data.ward, 0, 80)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidFamily(data) {
+      return data.keys().hasAll(['ownerUid', 'familyCode', 'headName', 'ward', 'rationCardCategory', 'memberCount', 'visibility', 'authorizedViewerUids', 'verificationStatus', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['ownerUid', 'familyCode', 'headName', 'headNameLocal', 'ward', 'houseNumber', 'rationCardCategory', 'memberCount', 'visibility', 'authorizedViewerUids', 'verificationStatus', 'createdAt', 'updatedAt']) &&
+             isValidStringBounds(data.ownerUid, 1, 128) &&
+             isValidStringBounds(data.familyCode, 2, 30) &&
+             isValidStringBounds(data.headName, 2, 100) &&
+             (!('headNameLocal' in data) || isValidStringBounds(data.headNameLocal, 0, 100)) &&
+             isValidStringBounds(data.ward, 1, 80) &&
+             (!('houseNumber' in data) || isValidStringBounds(data.houseNumber, 0, 30)) &&
+             data.rationCardCategory in ['APL', 'BPL', 'AAY', 'NONE'] &&
+             data.memberCount is int && data.memberCount >= 1 && data.memberCount <= 50 &&
+             data.visibility in ['PUBLIC', 'PRIVATE'] &&
+             isValidUidList(data.authorizedViewerUids, 20) &&
+             data.verificationStatus in ['PENDING', 'VERIFIED', 'REJECTED'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMember(data) {
+      return data.keys().hasAll(['ownerUid', 'fullName', 'guardianName', 'relationToHead', 'age', 'gender', 'ward', 'aadhaarMasked', 'voterIdMasked', 'visibility', 'authorizedViewerUids', 'verificationStatus', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['ownerUid', 'familyId', 'familyCode', 'fullName', 'fullNameLocal', 'guardianName', 'relationToHead', 'age', 'gender', 'ward', 'occupation', 'aadhaarMasked', 'aadhaarLast4', 'voterIdMasked', 'voterIdLast4', 'visibility', 'authorizedViewerUids', 'verificationStatus', 'createdAt', 'updatedAt']) &&
+             isValidStringBounds(data.ownerUid, 1, 128) &&
+             (!('familyId' in data) || isValidStringBounds(data.familyId, 0, 128)) &&
+             (!('familyCode' in data) || isValidStringBounds(data.familyCode, 0, 30)) &&
+             isValidStringBounds(data.fullName, 2, 100) &&
+             (!('fullNameLocal' in data) || isValidStringBounds(data.fullNameLocal, 0, 100)) &&
+             isValidStringBounds(data.guardianName, 1, 100) &&
+             data.relationToHead in ['HEAD', 'SPOUSE', 'SON', 'DAUGHTER', 'PARENT', 'OTHER'] &&
+             data.age is int && data.age >= 0 && data.age <= 120 &&
+             data.gender in ['MALE', 'FEMALE', 'OTHER'] &&
+             isValidStringBounds(data.ward, 1, 80) &&
+             (!('occupation' in data) || isValidStringBounds(data.occupation, 0, 80)) &&
+             isValidStringBounds(data.aadhaarMasked, 0, 20) &&
+             (!('aadhaarLast4' in data) || isValidStringBounds(data.aadhaarLast4, 0, 4)) &&
+             isValidStringBounds(data.voterIdMasked, 0, 20) &&
+             (!('voterIdLast4' in data) || isValidStringBounds(data.voterIdLast4, 0, 4)) &&
+             data.visibility in ['PUBLIC', 'PRIVATE'] &&
+             isValidUidList(data.authorizedViewerUids, 20) &&
+             data.verificationStatus in ['PENDING', 'VERIFIED', 'REJECTED'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPrivateDetail(data) {
+      return data.keys().hasAll(['ownerUid', 'authorizedViewerUids', 'phoneNumber', 'fullAddress', 'emergencyContact', 'privateNotes', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['ownerUid', 'authorizedViewerUids', 'phoneNumber', 'fullAddress', 'emergencyContact', 'privateNotes', 'createdAt', 'updatedAt']) &&
+             isValidStringBounds(data.ownerUid, 1, 128) &&
+             isValidUidList(data.authorizedViewerUids, 20) &&
+             isValidStringBounds(data.phoneNumber, 0, 20) &&
+             isValidStringBounds(data.fullAddress, 0, 250) &&
+             isValidStringBounds(data.emergencyContact, 0, 100) &&
+             isValidStringBounds(data.privateNotes, 0, 500) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAccessRequest(data) {
+      return data.keys().hasAll(['requesterUid', 'requesterName', 'targetType', 'targetId', 'targetName', 'targetOwnerUid', 'reason', 'status', 'reviewedByUid', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['requesterUid', 'requesterName', 'targetType', 'targetId', 'targetName', 'targetOwnerUid', 'reason', 'status', 'reviewedByUid', 'createdAt', 'updatedAt']) &&
+             isValidStringBounds(data.requesterUid, 1, 128) &&
+             isValidStringBounds(data.requesterName, 1, 100) &&
+             data.targetType in ['MEMBER', 'FAMILY'] &&
+             isValidStringBounds(data.targetId, 1, 128) &&
+             isValidStringBounds(data.targetName, 1, 100) &&
+             isValidStringBounds(data.targetOwnerUid, 1, 128) &&
+             isValidStringBounds(data.reason, 3, 250) &&
+             data.status in ['PENDING', 'APPROVED', 'REJECTED', 'REVOKED'] &&
+             isValidStringBounds(data.reviewedByUid, 0, 128) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /village_config/{configId} {
+      allow get: if isSignedIn() && isValidId(configId);
+      allow list: if false;
+      allow create: if isAdmin() && isValidId(configId) && isValidVillageConfig(incoming()) && incoming().updatedByUid == request.auth.uid;
+      allow update: if isAdmin() && isValidId(configId) && isValidVillageConfig(incoming()) && incoming().updatedByUid == request.auth.uid && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(configId);
+    }
+
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidId(adminUid) && isValidAdmin(incoming()) && incoming().uid == adminUid && incoming().addedByUid == request.auth.uid;
+      allow update: if isAdmin() && isValidId(adminUid) && isValidAdmin(incoming()) && incoming().uid == existing().uid && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(adminUid) && adminUid != request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && incoming().userId == request.auth.uid && isValidUserProfile(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && isValidUserProfile(incoming()) && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt && (
+        isAdmin() ||
+        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'preferredLanguage', 'ward', 'updatedAt']))
+      );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    match /families/{familyId} {
+      allow get: if isSignedIn() && isValidId(familyId) && (
+        resource.data.visibility == 'PUBLIC' ||
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.authorizedViewerUids ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.visibility == 'PUBLIC' ||
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.authorizedViewerUids ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(familyId) &&
+        incoming().ownerUid == request.auth.uid &&
+        isValidFamily(incoming()) &&
+        (incoming().verificationStatus == 'PENDING' || isAdmin());
+      allow update: if isSignedIn() && isValidId(familyId) &&
+        isValidFamily(incoming()) &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt && (
+          isAdmin() ||
+          (existing().ownerUid == request.auth.uid &&
+           incoming().verificationStatus == existing().verificationStatus &&
+           incoming().diff(existing()).affectedKeys().hasOnly([
+             'familyCode', 'headName', 'headNameLocal', 'ward', 'houseNumber',
+             'rationCardCategory', 'memberCount', 'visibility', 'authorizedViewerUids', 'updatedAt'
+           ]))
+        );
+      allow delete: if isSignedIn() && isValidId(familyId) && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    match /members/{memberId} {
+      allow get: if isSignedIn() && isValidId(memberId) && (
+        resource.data.visibility == 'PUBLIC' ||
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.authorizedViewerUids ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.visibility == 'PUBLIC' ||
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.authorizedViewerUids ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(memberId) &&
+        incoming().ownerUid == request.auth.uid &&
+        isValidMember(incoming()) &&
+        (incoming().verificationStatus == 'PENDING' || isAdmin()) &&
+        (!('familyId' in incoming()) || incoming().familyId == '' || exists(/databases/$(database)/documents/families/$(incoming().familyId)));
+      allow update: if isSignedIn() && isValidId(memberId) &&
+        isValidMember(incoming()) &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt && (
+          isAdmin() ||
+          (existing().ownerUid == request.auth.uid &&
+           incoming().verificationStatus == existing().verificationStatus &&
+           incoming().diff(existing()).affectedKeys().hasOnly([
+             'familyId', 'familyCode', 'fullName', 'fullNameLocal', 'guardianName',
+             'relationToHead', 'age', 'gender', 'ward', 'occupation',
+             'aadhaarMasked', 'aadhaarLast4', 'voterIdMasked', 'voterIdLast4',
+             'visibility', 'authorizedViewerUids', 'updatedAt'
+           ]))
+        );
+      allow delete: if isSignedIn() && isValidId(memberId) && (existing().ownerUid == request.auth.uid || isAdmin());
+
+      match /private_details/{detailId} {
+        allow get: if isSignedIn() && isValidId(memberId) && isValidId(detailId) && (
+          resource.data.ownerUid == request.auth.uid ||
+          request.auth.uid in resource.data.authorizedViewerUids ||
+          isAdmin()
+        );
+        allow list: if false;
+        allow create: if isSignedIn() && isValidId(memberId) && isValidId(detailId) &&
+          incoming().ownerUid == request.auth.uid &&
+          isValidPrivateDetail(incoming()) &&
+          exists(/databases/$(database)/documents/members/$(memberId)) &&
+          get(/databases/$(database)/documents/members/$(memberId)).data.ownerUid == request.auth.uid;
+        allow update: if isSignedIn() && isValidId(memberId) && isValidId(detailId) &&
+          isValidPrivateDetail(incoming()) &&
+          incoming().ownerUid == existing().ownerUid &&
+          incoming().createdAt == existing().createdAt && (
+            isAdmin() ||
+            (existing().ownerUid == request.auth.uid &&
+             incoming().diff(existing()).affectedKeys().hasOnly([
+               'authorizedViewerUids', 'phoneNumber', 'fullAddress', 'emergencyContact', 'privateNotes', 'updatedAt'
+             ]))
+          );
+        allow delete: if isSignedIn() && isValidId(memberId) && isValidId(detailId) && (existing().ownerUid == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /access_requests/{requestId} {
+      allow get: if isSignedIn() && isValidId(requestId) && (
+        resource.data.requesterUid == request.auth.uid ||
+        resource.data.targetOwnerUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.requesterUid == request.auth.uid ||
+        resource.data.targetOwnerUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(requestId) &&
+        incoming().requesterUid == request.auth.uid &&
+        incoming().status == 'PENDING' &&
+        incoming().reviewedByUid == '' &&
+        isValidAccessRequest(incoming()) && (
+          (incoming().targetType == 'MEMBER' && exists(/databases/$(database)/documents/members/$(incoming().targetId))) ||
+          (incoming().targetType == 'FAMILY' && exists(/databases/$(database)/documents/families/$(incoming().targetId)))
+        );
+      allow update: if isSignedIn() && isValidId(requestId) &&
+        isValidAccessRequest(incoming()) &&
+        incoming().requesterUid == existing().requesterUid &&
+        incoming().targetId == existing().targetId &&
+        incoming().targetOwnerUid == existing().targetOwnerUid &&
+        incoming().targetType == existing().targetType &&
+        incoming().createdAt == existing().createdAt && (
+          isAdmin() ||
+          (existing().targetOwnerUid == request.auth.uid &&
+           incoming().reviewedByUid == request.auth.uid &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedByUid', 'updatedAt']))
+        );
+      allow delete: if isSignedIn() && isValidId(requestId) && (existing().requesterUid == request.auth.uid || isAdmin());
+    }
+  }
+}
